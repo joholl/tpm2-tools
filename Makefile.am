@@ -45,6 +45,7 @@ bin_PROGRAMS = \
     tools/tpm2_dictionarylockout \
     tools/tpm2_duplicate \
     tools/tpm2_getcap \
+    tools/tpm2_getname \
     tools/tpm2_gettestresult \
     tools/tpm2_encryptdecrypt \
     tools/tpm2_evictcontrol \
@@ -109,6 +110,7 @@ tools_tpm2_clearcontrol_SOURCES = tools/tpm2_clearcontrol.c $(TOOL_SRC)
 tools_tpm2_create_SOURCES = tools/tpm2_create.c $(TOOL_SRC)
 tools_tpm2_createprimary_SOURCES = tools/tpm2_createprimary.c $(TOOL_SRC)
 tools_tpm2_getcap_SOURCES = tools/tpm2_getcap.c $(TOOL_SRC)
+tools_tpm2_getname_SOURCES = tools/tpm2_getname.c $(TOOL_SRC)
 tools_tpm2_pcrread_SOURCES = tools/tpm2_pcrread.c $(TOOL_SRC)
 tools_tpm2_load_SOURCES = tools/tpm2_load.c $(TOOL_SRC)
 tools_tpm2_send_SOURCES = tools/tpm2_send.c $(TOOL_SRC)
@@ -299,6 +301,7 @@ if HAVE_MAN_PAGES
     man/man1/tpm2_dictionarylockout.1 \
     man/man1/tpm2_duplicate.1 \
     man/man1/tpm2_getcap.1 \
+    man/man1/tpm2_getname.1 \
     man/man1/tpm2_encryptdecrypt.1 \
     man/man1/tpm2_evictcontrol.1 \
     man/man1/tpm2_flushcontext.1 \
