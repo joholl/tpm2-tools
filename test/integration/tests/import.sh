@@ -8,7 +8,8 @@ cleanup() {
     import_rsa_key.priv import_rsa_key.ctx import_rsa_key.name private.pem \
     public.pem plain.rsa.enc plain.rsa.dec public.pem data.in.raw \
     data.in.digest data.out.signed ticket.out ecc.pub ecc.priv ecc.name \
-    ecc.ctx private.ecc.pem public.ecc.pem passfile name.yaml
+    ecc.ctx private.ecc.pem public.ecc.pem passfile name.yaml stderr
+
 
     if [ "$1" != "no-shut-down" ]; then
           shut_down
@@ -26,8 +27,18 @@ run_aes_import_test() {
     echo "tpm2_import -Q -G aes -g "$name_alg" -i sym.key -C $1 \
     -u import_key.pub -r import_key.priv"
 
-    tpm2_import -Q -G aes -g "$name_alg" -i sym.key -C $1 -u import_key.pub \
-    -r import_key.priv
+    #Some TPMs might not be able to import aes256 keys (error 0x000002c4)
+    try "tpm2_import -Q -G aes -g "$name_alg" -i sym.key -C $1 -u import_key.pub \
+    -r import_key.priv" 2> stderr
+
+    if [ $rc != 0 ]; then
+        cat stderr
+        if [ -z "$(grep '0x000002c4' stderr)" ]; then
+            onerror
+        else
+            return 0
+        fi
+    fi
 
     tpm2_load -Q -C $1 -u import_key.pub -r import_key.priv -n import_key.name \
     -c import_key.ctx
@@ -65,6 +76,8 @@ run_rsa_import_test() {
 
     tpm2_load -Q -C $1 -u import_rsa_key.pub -r import_rsa_key.priv \
     -n import_rsa_key.name -c import_rsa_key.ctx
+
+    echo "plaintext" > "plain.txt"
 
     openssl rsa -in private.pem -out public.pem -outform PEM -pubout
     openssl rsautl -encrypt -inkey public.pem -pubin -in plain.txt \

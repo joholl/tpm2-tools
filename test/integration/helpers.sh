@@ -115,6 +115,19 @@ with open("$1") as f:
 pyscript
 }
 
+# Runs first param as command.
+# Sets variable rc (return code) and saves files stdout and stderr
+function try() {
+    # Disable error trap
+    trap - ERR
+
+    eval "$1"
+    rc=$?
+
+    # set the error handler for checking interoperability with openssl
+    trap onerror ERR
+}
+
 function recreate_info() {
     echo
     echo "--- To recreate this test run the following: ---"

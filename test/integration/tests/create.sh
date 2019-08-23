@@ -3,7 +3,7 @@
 source helpers.sh
 
 cleanup() {
-  rm -f key.pub key.priv policy.bin out.pub key.ctx
+  rm -f key.pub key.priv policy.bin out.pub key.ctx stderr
 
   if [ $(ina "$@" "keep-context") -ne 0 ]; then
     rm -f context.out
@@ -27,9 +27,21 @@ tpm2_createprimary -Q -C o -g sha1 -G rsa -c context.out
 # values.
 for gAlg in `populate_hash_algs`; do
     for GAlg in rsa keyedhash ecc aes; do
+
         echo "tpm2_create -Q -C context.out -g $gAlg -G $GAlg -u key.pub \
         -r key.priv"
-        tpm2_create -Q -C context.out -g $gAlg -G $GAlg -u key.pub -r key.priv
+
+        # Some TPMs might not be able to create aes256 keys (error 0x000002c4)
+        try "tpm2_create -Q -C context.out -g $gAlg -G $GAlg -u key.pub \
+        -r key.priv" 2> stderr
+
+        if [ $rc != 0 ]; then
+            cat stderr
+            if [ -z "$(grep '0x000002c4' stderr)" ]; then
+                onerror
+            fi
+        fi
+
         cleanup "keep-context" "no-shut-down"
     done
 done
@@ -49,13 +61,25 @@ test "$policy_orig" == "$policy_new"
 #
 # Test the extended format specifiers
 #
-tpm2_create -Q -C context.out -g sha256 -G aes256cbc -u key.pub -r key.priv
-tpm2_load -Q -C context.out -u key.pub -r key.priv -c key1.ctx
-tpm2_readpublic -c key1.ctx > out.yaml
-keybits=$(yaml_get_kv out.yaml "sym-keybits")
-mode=$(yaml_get_kv out.yaml "sym-mode" "value")
-test "$keybits" -eq "256"
-test "$mode" == "cbc"
+
+# Some TPMs might not be able to create aes256 keys (error 0x000002c4)
+try "tpm2_create -Q -C context.out -g sha256 -G aes256cbc -u key.pub -r key.priv" 2> stderr
+if [ $rc != 0 ]; then
+    cat stderr
+    if [ -z "$(grep '0x000002c4' stderr)" ]; then
+        onerror
+    else
+        tpm2_create_expected_error=true
+    fi
+fi
+if [ -z ${tpm2_create_expected_error} ]; then
+  tpm2_load -Q -C context.out -u key.pub -r key.priv -c key1.ctx
+  tpm2_readpublic -c key1.ctx > out.yaml
+  keybits=$(yaml_get_kv out.yaml "sym-keybits")
+  mode=$(yaml_get_kv out.yaml "sym-mode" "value")
+  test "$keybits" -eq "256"
+  test "$mode" == "cbc"
+fi
 
 tpm2_create -Q -C context.out -g sha256 -G aes128ofb -u key.pub -r key.priv
 tpm2_load -Q -C context.out -u key.pub -r key.priv -c key2.ctx

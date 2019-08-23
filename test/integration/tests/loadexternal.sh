@@ -24,7 +24,7 @@ cleanup() {
   $file_loadexternal_key_ctx $file_loadexternal_output private.pem public.pem \
   plain.txt plain.rsa.dec key.ctx public.ecc.pem private.ecc.pem \
   data.in.digest data.out.signed ticket.out name.bin stdout.yaml passfile \
-  private.pem
+  private.pem stderr
 
   if [ $(ina "$@" "keep_handle") -ne 0 ]; then
     tpm2_evictcontrol -Q -Co -c $Handle_parent 2>/dev/null || true
@@ -117,7 +117,17 @@ run_aes_test() {
 
     dd if=/dev/urandom of=sym.key bs=1 count=$(($1 / 8)) 2>/dev/null
 
-    tpm2_loadexternal -G aes -r sym.key -n name.bin -c key.ctx > stdout.yaml
+    # Some TPMs might not be able to load aes256 keys (error 0x000001d5)
+    try "tpm2_loadexternal -G aes -r sym.key -n name.bin -c key.ctx" 1> stdout.yaml 2> stderr
+
+    if [ $rc != 0 ]; then
+        cat stderr
+        if [ -z "$(grep '0x000001d5' stderr)" ]; then
+            onerror
+        else
+            return 0
+        fi
+    fi
 
     local name1=$(yaml_get_kv "stdout.yaml" "name")
     local name2="$(xxd -c 256 -p name.bin)"
