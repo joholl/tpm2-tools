@@ -8,7 +8,7 @@ cleanup() {
     import_rsa_key.priv import_rsa_key.ctx import_rsa_key.name private.pem \
     public.pem plain.rsa.enc plain.rsa.dec public.pem data.in.raw \
     data.in.digest data.out.signed ticket.out ecc.pub ecc.priv ecc.name \
-    ecc.ctx private.ecc.pem public.ecc.pem passfile
+    ecc.ctx private.ecc.pem public.ecc.pem passfile name.yaml
 
     if [ "$1" != "no-shut-down" ]; then
           shut_down
@@ -34,12 +34,21 @@ run_aes_import_test() {
 
     echo "plaintext" > "plain.txt"
 
-    tpm2_encryptdecrypt -c import_key.ctx -o plain.enc plain.txt
+    if [ ! -z "$(tpm2_getcap commands | grep 'encryptdecrypt:')" ]; then
+        tpm2_encryptdecrypt -c import_key.ctx -o plain.enc plain.txt
 
-    openssl enc -in plain.enc -out plain.dec.ssl -d -K `xxd -c 256 -p sym.key` \
-    -iv 0 -$2
+        openssl enc -in plain.enc -out plain.dec.ssl -d -K \
+        `xxd -c 256 -p sym.key` -iv 0 -$2
 
-    diff plain.txt plain.dec.ssl
+        diff plain.txt plain.dec.ssl
+    else
+        tpm2_getname -c import_key.ctx > name.yaml
+
+        local name1="$(xxd -c 256 -p import_key.name)"
+        local name2=$(yaml_get_kv "name.yaml" "name")
+
+        test "$name1" == "$name2"
+    fi
 
     rm import_key.ctx
 }

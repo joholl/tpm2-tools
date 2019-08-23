@@ -126,12 +126,20 @@ run_aes_test() {
 
     echo "plaintext" > "plain.txt"
 
-    tpm2_encryptdecrypt -c key.ctx -o plain.enc plain.txt
+    if [ ! -z "$(tpm2_getcap commands | grep 'encryptdecrypt:')" ]; then
+        tpm2_encryptdecrypt -Q -c key.ctx -o plain.enc plain.txt
 
-    openssl enc -in plain.enc -out plain.dec.ssl -d -K `xxd -c 256 -p sym.key` \
-	-iv 0 -aes-$1-cfb
+        openssl enc -in plain.enc -out plain.dec.ssl -d -K `xxd -c 256 -p sym.key` \
+	                -iv 0 -aes-$1-cfb
 
-    diff plain.txt plain.dec.ssl
+        diff plain.txt plain.dec.ssl
+    else
+        tpm2_getname -c key.ctx > stdout.yaml
+
+        local name3=$(yaml_get_kv "stdout.yaml" "name")
+
+        test "$name1" == "$name3"
+    fi
 
     cleanup "no-shut-down"
 }
